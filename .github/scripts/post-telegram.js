@@ -73,7 +73,7 @@ function escapeHtml(s) {
 function buildMessage(release, siteUrl) {
   const lines = [];
 
-  lines.push('🐕 <b>Max Game v' + escapeHtml(release.version) + '</b>');
+  lines.push('🐕 <b>Siba Hunter v' + escapeHtml(release.version) + '</b>');
   lines.push(escapeHtml(release.title));
   lines.push('');
 

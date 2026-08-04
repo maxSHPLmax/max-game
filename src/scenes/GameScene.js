@@ -196,8 +196,13 @@ class GameScene extends Phaser.Scene {
   }
 
   update(time) {
+    // рестарт: клавиша R или экранная кнопка (читаем один раз за кадр)
+    const restartPressed =
+      Phaser.Input.Keyboard.JustDown(this.keys.restart) ||
+      TouchInput.consumeRestart();
+
     if (this.finished) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.restart)) {
+      if (restartPressed) {
         this.scene.restart({ levelIndex: this.levelIndex });
       }
       return;
@@ -205,7 +210,7 @@ class GameScene extends Phaser.Scene {
 
     const p = this.player;
 
-    if (Phaser.Input.Keyboard.JustDown(this.keys.restart)) {
+    if (restartPressed) {
       this.die();
       return;
     }
@@ -216,8 +221,8 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    const left  = this.cursors.left.isDown  || this.keys.left.isDown;
-    const right = this.cursors.right.isDown || this.keys.right.isDown;
+    const left  = this.cursors.left.isDown  || this.keys.left.isDown  || TouchInput.left;
+    const right = this.cursors.right.isDown || this.keys.right.isDown || TouchInput.right;
 
     if (left) {
       p.setVelocityX(-TUNING.runSpeed);
@@ -235,7 +240,8 @@ class GameScene extends Phaser.Scene {
 
     const jumpPressed =
       Phaser.Input.Keyboard.JustDown(this.keys.jump) ||
-      Phaser.Input.Keyboard.JustDown(this.cursors.up);
+      Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+      TouchInput.consumeJump();
 
     if (jumpPressed) this.lastJumpPress = time;
 
@@ -249,7 +255,7 @@ class GameScene extends Phaser.Scene {
     }
 
     // короткое нажатие = низкий прыжок
-    const jumpHeld = this.keys.jump.isDown || this.cursors.up.isDown;
+    const jumpHeld = this.keys.jump.isDown || this.cursors.up.isDown || TouchInput.jumpHeld;
     if (!jumpHeld && p.body.velocity.y < -180) {
       p.setVelocityY(-180);
     }

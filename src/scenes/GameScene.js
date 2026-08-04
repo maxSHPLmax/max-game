@@ -334,6 +334,7 @@ class GameScene extends Phaser.Scene {
   reachFlag() {
     if (this.finished) return;
     this.finished = true;
+    this.freeze();
 
     const elapsed = this.time.now - this.startedAt;
     Save.completeLevel(this.levelIndex, this.bonesCollected, elapsed);
@@ -349,6 +350,22 @@ class GameScene extends Phaser.Scene {
     } else {
       this.finishRun();
     }
+  }
+
+  // Уровень взят: всё останавливается. Без этого собака
+  // продолжает бежать вправо на старой скорости, пока висит
+  // баннер, и успевает убежать за край уровня.
+  freeze() {
+    const p = this.player;
+    p.setVelocity(0, 0);
+    p.body.moves = false;
+    p.anims.stop();
+    p.setTexture('dog-stand');
+
+    this.enemies.getChildren().forEach(function (e) {
+      e.setVelocity(0, 0);
+      e.anims.stop();
+    });
   }
 
   // --- игра пройдена целиком -------------------------------
@@ -406,7 +423,8 @@ class GameScene extends Phaser.Scene {
   }
 
   die() {
-    if (this.dying) return;
+    // finished — страховка: уровень уже взят, отнимать жизнь не за что
+    if (this.dying || this.finished) return;
     this.dying = true;
     Save.addDeath();
 

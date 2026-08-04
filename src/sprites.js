@@ -24,6 +24,9 @@ const PIXEL_COLORS = {
   h: 0x585170,   // тень на шерсти
   m: 0xcec9e0,   // светлая морда и лапы
   y: 0xffd23f,   // злые жёлтые глаза
+
+  Y: 0xffcc33,   // золотая косточка
+  Z: 0xc4941c,   // тень на золоте
 };
 
 // Тело — 14 строк. Ниже к нему приставляются лапы.
@@ -104,6 +107,17 @@ const SPRITES = {
     'oWWWWWSSo',
     'oWWWWWSSo',
     'oWSo.oSSo',
+    '.oo...oo.',
+  ],
+
+  // та же форма, но золотая и крупнее — масштаб 3 → 27x21
+  goldbone: [
+    '.oo...oo.',
+    'oYYo.oYYo',
+    'oYYYYYYYo',
+    'oYYYYYZZo',
+    'oYYYYYZZo',
+    'oYZo.oZZo',
     '.oo...oo.',
   ],
 };

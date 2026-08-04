@@ -21,6 +21,7 @@
    | новый уровень, правка старого | `src/levels.js` |
    | скорость врагов, сила отскока | `TUNING` в `src/scenes/GameScene.js` |
    | число жизней, цена лишней жизни | `src/run.js` |
+   | габариты большой собаки | `SIZES` в `src/scenes/GameScene.js` |
    | внешний вид персонажа, предметов | `src/sprites.js` |
    | ощущение управления | `TUNING` в начале `src/scenes/GameScene.js` |
 

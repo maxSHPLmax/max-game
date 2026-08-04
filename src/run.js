@@ -15,12 +15,14 @@ const Run = {
   banked: 0,            // счётчик до следующей лишней жизни
   bonesTotal: 0,        // всего косточек за забег
   startedAt: null,      // время старта забега
+  big: false,           // подобрана ли золотая косточка
 
   reset() {
     this.lives = this.LIVES_START;
     this.banked = 0;
     this.bonesTotal = 0;
     this.startedAt = null;
+    this.big = false;
   },
 
   // Таймер запускается один раз за забег. Смерть и перезапуск

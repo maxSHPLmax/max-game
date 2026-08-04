@@ -12,6 +12,14 @@ const TUNING = {
 
   enemySpeed:  65,   // скорость патрулирования кота
   stompBounce: 380,  // отскок после прыжка на врага
+  mercyMs:    1600,  // неуязвимость после того, как собака уменьшилась
+};
+
+// Габариты тела для обеих комплекций. Спрайт большой собаки
+// рисуется в двойном масштабе, поэтому 64x64 против 32x32.
+const SIZES = {
+  small: { prefix: 'dog',    w: 22, h: 30, ox: 5, oy: 2, half: 16 },
+  big:   { prefix: 'dogbig', w: 44, h: 60, ox: 10, oy: 4, half: 32 },
 };
 
 // 273500 -> '4:33.5'
@@ -58,6 +66,13 @@ class GameScene extends Phaser.Scene {
       g.clear();
     });
 
+    // большая собака — те же позы, но в масштабе 4
+    ['stand', 'step1', 'step2', 'jump'].forEach(function (pose) {
+      const big = drawPixelArt(g, composeShiba(pose), 4);
+      g.generateTexture('dogbig-' + pose, big.width, big.height);
+      g.clear();
+    });
+
     // кот-противник: две позы шага
     ['step1', 'step2'].forEach(function (pose) {
       const cat = drawPixelArt(g, composeCat(pose), 2);
@@ -68,6 +83,11 @@ class GameScene extends Phaser.Scene {
     // косточка
     const bone = drawPixelArt(g, SPRITES.bone, 2);
     g.generateTexture('bone', bone.width, bone.height);
+    g.clear();
+
+    // золотая косточка — крупнее обычной, чтобы бросалась в глаза
+    const gold = drawPixelArt(g, SPRITES.goldbone, 3);
+    g.generateTexture('goldbone', gold.width, gold.height);
     g.clear();
 
     // флаг
@@ -94,6 +114,7 @@ class GameScene extends Phaser.Scene {
 
     this.levelRows = rows;      // нужен для проверки края платформы
     this.dying = false;
+    this.golden = null;         // ссылка с прошлого запуска сцены не нужна
 
     this.solids = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
@@ -112,6 +133,9 @@ class GameScene extends Phaser.Scene {
           this.solids.create(x + TILE / 2, y + TILE / 4, 'platform');
         } else if (ch === 'o') {
           this.bones.create(x + TILE / 2, y + TILE / 2, 'bone');
+        } else if (ch === 'G') {
+          this.golden = this.physics.add.sprite(x + TILE / 2, y + TILE / 2, 'goldbone');
+          this.golden.body.setAllowGravity(false).setImmovable(true);
         } else if (ch === 'E') {
           this.spawnEnemy(x + TILE / 2, y + TILE / 2);
         } else if (ch === 'P') {
@@ -135,9 +159,17 @@ class GameScene extends Phaser.Scene {
     });
 
     // --- игрок ----------------------------------------------
-    this.player = this.physics.add.sprite(this.spawn.x, this.spawn.y, 'dog-stand');
+    // Размер сохраняется между уровнями, как гриб в Марио.
+    const size = Run.big ? SIZES.big : SIZES.small;
+    this.invulnUntil = 0;
+
+    this.player = this.physics.add.sprite(
+      this.spawn.x,
+      this.spawn.y - (size.half - SIZES.small.half),
+      size.prefix + '-stand'
+    );
     this.player.setCollideWorldBounds(false);
-    this.player.body.setSize(22, 30).setOffset(5, 2);
+    this.applyBody(size);
 
     // анимация ходьбы регистрируется один раз на всю игру,
     // а create() выполняется заново при каждом рестарте уровня
@@ -145,6 +177,15 @@ class GameScene extends Phaser.Scene {
       this.anims.create({
         key: 'dog-walk',
         frames: [{ key: 'dog-step1' }, { key: 'dog-step2' }],
+        frameRate: 9,
+        repeat: -1,
+      });
+    }
+
+    if (!this.anims.exists('dogbig-walk')) {
+      this.anims.create({
+        key: 'dogbig-walk',
+        frames: [{ key: 'dogbig-step1' }, { key: 'dogbig-step2' }],
         frameRate: 9,
         repeat: -1,
       });
@@ -168,6 +209,18 @@ class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.solids);
     this.physics.add.overlap(this.player, this.bones, this.grabBone, null, this);
+    if (this.golden) {
+      this.physics.add.overlap(this.player, this.golden, this.grabGolden, null, this);
+      this.tweens.add({
+        targets: this.golden,
+        y: this.golden.y - 6,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+      });
+    }
+
     this.physics.add.collider(this.enemies, this.solids);
     this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, null, this);
     if (this.flag) {
@@ -217,6 +270,61 @@ class GameScene extends Phaser.Scene {
     this.hud.setText(
       `${lvl.name}   ${Run.heartsLabel()}   косточки ${this.bonesCollected}/${this.totalBones}`
     );
+  }
+
+  // --- размер собаки ---------------------------------------
+
+  applyBody(size) {
+    this.player.body.setSize(size.w, size.h).setOffset(size.ox, size.oy);
+    this.texPrefix = size.prefix;
+    this.pose = null;
+  }
+
+  // Спрайт растёт от центра, поэтому при смене размера собаку
+  // нужно сдвинуть по вертикали — иначе ноги уедут под землю
+  // или она повиснет в воздухе.
+  resize(toBig) {
+    const from = toBig ? SIZES.small : SIZES.big;
+    const to   = toBig ? SIZES.big   : SIZES.small;
+
+    Run.big = toBig;
+    this.player.y -= (to.half - from.half);
+    this.applyBody(to);
+    this.player.anims.stop();
+    this.player.setTexture(to.prefix + '-stand');
+  }
+
+  grabGolden(player, gold) {
+    gold.disableBody(true, true);
+    this.golden = null;
+
+    this.bonesCollected++;
+    Run.addBone();
+
+    if (!Run.big) {
+      this.resize(true);
+      this.toast('Большая собака!');
+    } else {
+      this.toast('+1 косточка');
+    }
+
+    this.updateHud();
+  }
+
+  // Касание кота в большой форме: уменьшаемся и получаем
+  // короткую неуязвимость, чтобы не потерять всё разом.
+  shrink() {
+    this.resize(false);
+    this.invulnUntil = this.time.now + TUNING.mercyMs;
+
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0.25,
+      duration: 110,
+      yoyo: true,
+      repeat: 6,
+      onComplete: () => this.player.setAlpha(1),
+    });
   }
 
   // --- враги -----------------------------------------------
@@ -277,6 +385,13 @@ class GameScene extends Phaser.Scene {
     if (falling && fromAbove) {
       this.squash(enemy);
       player.setVelocityY(-TUNING.stompBounce);
+      return;
+    }
+
+    if (this.time.now < this.invulnUntil) return;   // ещё мигает после удара
+
+    if (Run.big) {
+      this.shrink();
     } else {
       this.die();
     }
@@ -360,7 +475,7 @@ class GameScene extends Phaser.Scene {
     p.setVelocity(0, 0);
     p.body.moves = false;
     p.anims.stop();
-    p.setTexture('dog-stand');
+    p.setTexture(this.texPrefix + '-stand');
 
     this.enemies.getChildren().forEach(function (e) {
       e.setVelocity(0, 0);
@@ -434,8 +549,9 @@ class GameScene extends Phaser.Scene {
     p.body.checkCollision.none = true;
     p.setVelocity(0, -330);
     p.anims.stop();
-    p.setTexture('dog-jump');
+    p.setTexture(this.texPrefix + '-jump');
 
+    Run.big = false;          // при гибели усиление теряется
     const left = Run.loseLife();
     const self = this;
 
@@ -535,10 +651,10 @@ class GameScene extends Phaser.Scene {
     if (pose !== this.pose) {
       this.pose = pose;
       if (pose === 'walk') {
-        p.anims.play('dog-walk', true);
+        p.anims.play(this.texPrefix + '-walk', true);
       } else {
         p.anims.stop();
-        p.setTexture('dog-' + pose);
+        p.setTexture(this.texPrefix + '-' + pose);
       }
     }
   }

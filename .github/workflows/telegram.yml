@@ -1,0 +1,33 @@
+name: Пост в Telegram
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'changelog.js'      # запускаемся только когда менялся changelog
+  workflow_dispatch:        # и по кнопке вручную
+    inputs:
+      dry_run:
+        description: 'Только показать текст, не отправлять'
+        type: boolean
+        default: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Забрать код
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # нужна история, чтобы сравнить версии до и после пуша
+
+      - name: Отправить пост
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SITE_URL: https://maxshplmax.github.io/max-game/
+          PREV_SHA: ${{ github.event.before }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: node .github/scripts/post-telegram.js

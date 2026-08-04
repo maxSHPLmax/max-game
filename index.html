@@ -25,26 +25,25 @@
 </head>
 <body class="page-game">
 
-  <h1 class="title">MAX GAME</h1>
+  <header class="bar bar-top">
+    <span class="brand">MAX GAME</span>
+    <nav class="bar-links">
+      <a href="changelog.html">Обновления</a>
+      <a href="https://github.com/maxshplmax/max-game">GitHub</a>
+      <span id="version"></span>
+    </nav>
+  </header>
 
-  <div id="game"></div>
+  <main id="game"></main>
 
-  <p class="hint">
-    <kbd>&larr;</kbd> <kbd>&rarr;</kbd> идти &nbsp;·&nbsp;
-    <kbd>Space</kbd> прыгнуть &nbsp;·&nbsp;
-    <kbd>R</kbd> начать уровень заново
-    <br>
-    Собери монеты и дойди до флага. Прогресс сохраняется в браузере.
-  </p>
-
-  <section class="whats-new" id="whats-new"></section>
-
-  <footer class="site-footer">
-    <a href="changelog.html">История обновлений</a>
-    <a href="https://github.com/maxshplmax/max-game">Исходники на GitHub</a>
+  <footer class="bar bar-bottom">
+    <span class="controls">
+      <kbd>&larr;</kbd><kbd>&rarr;</kbd> идти
+      <kbd>Space</kbd> прыжок
+      <kbd>R</kbd> заново
+    </span>
+    <span class="whats-new" id="whats-new"></span>
   </footer>
-
-  <div id="version"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script src="changelog.js"></script>

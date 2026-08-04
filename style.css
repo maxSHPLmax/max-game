@@ -36,47 +36,74 @@ a:hover { color: var(--gold); }
   line-height: 1.5;
 }
 
-/* ---------- главная ---------------------------------------- */
+/* ---------- главная: шапка + игра + подвал ------------------ */
+/* Вся страница ровно в один экран, без прокрутки.               */
 
-.page-game {
-  min-height: 100vh;
+html { height: 100%; }
+
+body.page-game {
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 20px;
-  padding: 24px 16px 64px;
-}
-
-h1.title {
-  font-family: 'Press Start 2P', monospace;
-  font-size: clamp(14px, 3.2vw, 24px);
-  color: var(--gold);
-  margin: 0;
-  letter-spacing: 1px;
-  text-shadow: 0 3px 0 #a8791a;
-}
-
-#game {
-  border: 3px solid var(--edge);
-  border-radius: 4px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-  line-height: 0;
-  max-width: 100%;
-}
-
-#game canvas { max-width: 100%; height: auto; }
-
-.hint {
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  padding: 9px 16px;
+  background: var(--panel);
   font-size: 13px;
   color: var(--muted);
-  text-align: center;
-  max-width: 620px;
-  margin: 0;
+}
+
+.bar-top    { border-bottom: 1px solid var(--edge); }
+.bar-bottom { border-top: 1px solid var(--edge); }
+
+.bar a { text-decoration: none; }
+
+.brand {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  color: var(--gold);
+  text-shadow: 0 2px 0 #a8791a;
+}
+
+.bar-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+#version {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* игра забирает всю оставшуюся высоту */
+#game {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #0a0a12;
+}
+
+#game canvas { display: block; }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 kbd {
-  background: var(--panel);
+  background: var(--night);
   border: 1px solid var(--edge);
   border-bottom-width: 2px;
   border-radius: 3px;
@@ -85,49 +112,40 @@ kbd {
   color: var(--text);
 }
 
-/* полоска «свежее обновление» */
 .whats-new {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  justify-content: center;
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  border-left: 3px solid var(--gold);
-  border-radius: 4px;
-  padding: 12px 18px;
-  max-width: 620px;
-  font-size: 14px;
+  gap: 9px;
+  min-width: 0;
 }
 
 .whats-new .eyebrow {
   font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
+  font-size: 7px;
   color: var(--gold);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.whats-new .what { color: var(--text); }
-.whats-new .when { color: var(--muted); font-size: 13px; }
-
-.site-footer {
-  display: flex;
-  gap: 20px;
-  font-size: 13px;
-  color: var(--muted);
-  flex-wrap: wrap;
-  justify-content: center;
+.whats-new .what {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-#version {
+@media (max-width: 700px) {
+  .bar { font-size: 12px; padding: 7px 12px; }
+  .brand { font-size: 11px; }
+  .bar-links { gap: 12px; }
+  .whats-new { display: none; }
+}
+
+/* на странице обновлений бейдж версии висит в углу */
+.page-log #version {
   position: fixed;
   bottom: 10px;
   right: 14px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  color: var(--muted);
-  opacity: 0.7;
 }
 
 /* ---------- страница обновлений ---------------------------- */

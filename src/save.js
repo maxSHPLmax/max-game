@@ -6,7 +6,7 @@
 // ===========================================================
 
 const Save = {
-  KEY: 'maxgame.save.v1',
+  KEY: 'maxgame.save.v2',
 
   _data: null,
 
@@ -39,15 +39,15 @@ const Save = {
   level(index) {
     const d = this.load();
     if (!d.levels[index]) {
-      d.levels[index] = { completed: false, bestCoins: 0, bestTime: null };
+      d.levels[index] = { completed: false, bestBones: 0, bestTime: null };
     }
     return d.levels[index];
   },
 
-  completeLevel(index, coins, timeMs) {
+  completeLevel(index, bones, timeMs) {
     const lvl = this.level(index);
     lvl.completed = true;
-    lvl.bestCoins = Math.max(lvl.bestCoins, coins);
+    lvl.bestBones = Math.max(lvl.bestBones, bones);
     if (lvl.bestTime === null || timeMs < lvl.bestTime) lvl.bestTime = timeMs;
     this._write();
   },

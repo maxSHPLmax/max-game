@@ -37,18 +37,14 @@ class GameScene extends Phaser.Scene {
     g.generateTexture('platform', TILE, TILE / 2);
     g.clear();
 
-    // игрок
-    g.fillStyle(0xe04b4b).fillRect(0, 0, 24, 32);
-    g.fillStyle(0xf5d0a9).fillRect(4, 6, 16, 10);
-    g.fillStyle(0x2b2b3a).fillRect(0, 0, 24, 6);
-    g.fillStyle(0x1a1a28).fillRect(13, 9, 3, 3);
-    g.generateTexture('player', 24, 32);
+    // сиба-ину — пиксель-арт из src/sprites.js
+    const dog = drawPixelArt(g, SPRITES.shiba, 2);
+    g.generateTexture('player', dog.width, dog.height);
     g.clear();
 
-    // монета
-    g.fillStyle(0xffcc33).fillCircle(8, 8, 8);
-    g.fillStyle(0xffe89a).fillCircle(6, 6, 3);
-    g.generateTexture('coin', 16, 16);
+    // косточка
+    const bone = drawPixelArt(g, SPRITES.bone, 2);
+    g.generateTexture('bone', bone.width, bone.height);
     g.clear();
 
     // флаг
@@ -65,12 +61,12 @@ class GameScene extends Phaser.Scene {
     this.levelWidth  = rows[0].length * TILE;
     this.levelHeight = rows.length * TILE;
 
-    this.coinsCollected = 0;
+    this.bonesCollected = 0;
     this.startedAt = this.time.now;
     this.finished = false;
 
     this.solids = this.physics.add.staticGroup();
-    this.coins  = this.physics.add.group({ allowGravity: false, immovable: true });
+    this.bones  = this.physics.add.group({ allowGravity: false, immovable: true });
 
     // --- разбираем карту ------------------------------------
     for (let r = 0; r < rows.length; r++) {
@@ -84,7 +80,7 @@ class GameScene extends Phaser.Scene {
         } else if (ch === '=') {
           this.solids.create(x + TILE / 2, y + TILE / 4, 'platform');
         } else if (ch === 'o') {
-          this.coins.create(x + TILE / 2, y + TILE / 2, 'coin');
+          this.bones.create(x + TILE / 2, y + TILE / 2, 'bone');
         } else if (ch === 'P') {
           this.spawn = { x: x + TILE / 2, y: y + TILE / 2 };
         } else if (ch === 'F') {
@@ -93,11 +89,11 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    this.totalCoins = this.coins.getChildren().length;
+    this.totalBones = this.bones.getChildren().length;
 
-    // монетки слегка покачиваются
+    // косточки слегка покачиваются
     this.tweens.add({
-      targets: this.coins.getChildren(),
+      targets: this.bones.getChildren(),
       y: '-=5',
       duration: 700,
       yoyo: true,
@@ -108,13 +104,13 @@ class GameScene extends Phaser.Scene {
     // --- игрок ----------------------------------------------
     this.player = this.physics.add.sprite(this.spawn.x, this.spawn.y, 'player');
     this.player.setCollideWorldBounds(false);
-    this.player.body.setSize(20, 32).setOffset(2, 0);
+    this.player.body.setSize(22, 30).setOffset(5, 2);
 
     this.physics.world.gravity.y = TUNING.gravity;
     this.physics.world.setBounds(0, 0, this.levelWidth, this.levelHeight);
 
     this.physics.add.collider(this.player, this.solids);
-    this.physics.add.overlap(this.player, this.coins, this.grabCoin, null, this);
+    this.physics.add.overlap(this.player, this.bones, this.grabBone, null, this);
     if (this.flag) {
       this.physics.add.overlap(this.player, this.flag, this.reachFlag, null, this);
     }
@@ -160,13 +156,13 @@ class GameScene extends Phaser.Scene {
   updateHud() {
     const lvl = LEVELS[this.levelIndex];
     this.hud.setText(
-      `${lvl.name}   монеты ${this.coinsCollected}/${this.totalCoins}   смерти ${Save.load().totalDeaths}`
+      `${lvl.name}   косточки ${this.bonesCollected}/${this.totalBones}   смерти ${Save.load().totalDeaths}`
     );
   }
 
-  grabCoin(player, coin) {
-    coin.disableBody(true, true);
-    this.coinsCollected++;
+  grabBone(player, bone) {
+    bone.disableBody(true, true);
+    this.bonesCollected++;
     this.updateHud();
   }
 
@@ -175,17 +171,17 @@ class GameScene extends Phaser.Scene {
     this.finished = true;
 
     const elapsed = this.time.now - this.startedAt;
-    Save.completeLevel(this.levelIndex, this.coinsCollected, elapsed);
+    Save.completeLevel(this.levelIndex, this.bonesCollected, elapsed);
 
     const secs = (elapsed / 1000).toFixed(1);
     const next = this.levelIndex + 1;
 
     if (next < LEVELS.length) {
-      this.banner.setText(`Уровень пройден!\n${this.coinsCollected}/${this.totalCoins} монет · ${secs} с`).setVisible(true);
+      this.banner.setText(`Уровень пройден!\n${this.bonesCollected}/${this.totalBones} косточек · ${secs} с`).setVisible(true);
       this.time.delayedCall(1600, () => this.scene.restart({ levelIndex: next }));
     } else {
       this.banner.setText(
-        `Уровень пройден!\n${this.coinsCollected}/${this.totalCoins} монет · ${secs} с\n\nНовые уровни — в следующем обновлении.\nR — пройти заново`
+        `Уровень пройден!\n${this.bonesCollected}/${this.totalBones} косточек · ${secs} с\n\nНовые уровни — в следующем обновлении.\nR — пройти заново`
       ).setVisible(true);
     }
   }
@@ -196,8 +192,13 @@ class GameScene extends Phaser.Scene {
   }
 
   update(time) {
+    // рестарт: клавиша R или экранная кнопка (читаем один раз за кадр)
+    const restartPressed =
+      Phaser.Input.Keyboard.JustDown(this.keys.restart) ||
+      TouchInput.consumeRestart();
+
     if (this.finished) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.restart)) {
+      if (restartPressed) {
         this.scene.restart({ levelIndex: this.levelIndex });
       }
       return;
@@ -205,7 +206,7 @@ class GameScene extends Phaser.Scene {
 
     const p = this.player;
 
-    if (Phaser.Input.Keyboard.JustDown(this.keys.restart)) {
+    if (restartPressed) {
       this.die();
       return;
     }
@@ -216,8 +217,8 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    const left  = this.cursors.left.isDown  || this.keys.left.isDown;
-    const right = this.cursors.right.isDown || this.keys.right.isDown;
+    const left  = this.cursors.left.isDown  || this.keys.left.isDown  || TouchInput.left;
+    const right = this.cursors.right.isDown || this.keys.right.isDown || TouchInput.right;
 
     if (left) {
       p.setVelocityX(-TUNING.runSpeed);
@@ -235,7 +236,8 @@ class GameScene extends Phaser.Scene {
 
     const jumpPressed =
       Phaser.Input.Keyboard.JustDown(this.keys.jump) ||
-      Phaser.Input.Keyboard.JustDown(this.cursors.up);
+      Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+      TouchInput.consumeJump();
 
     if (jumpPressed) this.lastJumpPress = time;
 
@@ -249,7 +251,7 @@ class GameScene extends Phaser.Scene {
     }
 
     // короткое нажатие = низкий прыжок
-    const jumpHeld = this.keys.jump.isDown || this.cursors.up.isDown;
+    const jumpHeld = this.keys.jump.isDown || this.cursors.up.isDown || TouchInput.jumpHeld;
     if (!jumpHeld && p.body.velocity.y < -180) {
       p.setVelocityY(-180);
     }

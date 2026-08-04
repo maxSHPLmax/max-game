@@ -18,6 +18,12 @@ const PIXEL_COLORS = {
   e: 0x1a1208,   // глаза и нос
   W: 0xf0f0eb,   // косточка
   S: 0xc8c6be,   // тень на косточке
+
+  k: 0x2d263a,   // контур кота — холоднее собачьего
+  g: 0x7a7196,   // серо-лиловая шерсть
+  h: 0x585170,   // тень на шерсти
+  m: 0xcec9e0,   // светлая морда и лапы
+  y: 0xffd23f,   // злые жёлтые глаза
 };
 
 // Тело — 14 строк. Ниже к нему приставляются лапы.
@@ -56,6 +62,37 @@ const SHIBA_LEGS = {
 // Собирает готовую сетку собаки: тело + выбранные лапы
 function composeShiba(legsKey) {
   return SHIBA_BODY.concat(SHIBA_LEGS[legsKey]);
+}
+
+// --- кот-противник -----------------------------------------
+// Собран так же, как собака: тело плюс варианты лап.
+const CAT_BODY = [
+  '................',
+  '..k..........k..',
+  '..kk........kk..',
+  '..kgk......kgk..',
+  '..kggkkkkkkggk..',
+  '..kggggggggggk..',
+  '.kggyeggggeyggk.',
+  '.kggyyggggyyggk.',
+  '.kggggmmmmggggk.',
+  '.kgggmkkmmggggk.',
+  '..kggmmmmmmggk..',
+  '...kgghhhhggk...',
+  '...kggmmmmggk...',
+  '...kggmmmmggk...',
+];
+
+const CAT_LEGS = {
+  step1: ['..kggk....kggk..',
+          '..kmmk..........'],
+
+  step2: ['..kggk....kggk..',
+          '..........kmmk..'],
+};
+
+function composeCat(legsKey) {
+  return CAT_BODY.concat(CAT_LEGS[legsKey]);
 }
 
 const SPRITES = {

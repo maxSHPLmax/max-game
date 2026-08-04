@@ -9,6 +9,9 @@ const TUNING = {
   gravity:    950,   // гравитация
   coyoteMs:   110,   // сколько мс после края ещё можно прыгнуть
   bufferMs:   120,   // сколько мс до земли засчитывается нажатие прыжка
+
+  enemySpeed:  65,   // скорость патрулирования кота
+  stompBounce: 380,  // отскок после прыжка на врага
 };
 
 class GameScene extends Phaser.Scene {
@@ -44,6 +47,13 @@ class GameScene extends Phaser.Scene {
       g.clear();
     });
 
+    // кот-противник: две позы шага
+    ['step1', 'step2'].forEach(function (pose) {
+      const cat = drawPixelArt(g, composeCat(pose), 2);
+      g.generateTexture('cat-' + pose, cat.width, cat.height);
+      g.clear();
+    });
+
     // косточка
     const bone = drawPixelArt(g, SPRITES.bone, 2);
     g.generateTexture('bone', bone.width, bone.height);
@@ -68,7 +78,11 @@ class GameScene extends Phaser.Scene {
     this.finished = false;
     this.pose = null;
 
+    this.levelRows = rows;      // нужен для проверки края платформы
+    this.dying = false;
+
     this.solids = this.physics.add.staticGroup();
+    this.enemies = this.physics.add.group();
     this.bones  = this.physics.add.group({ allowGravity: false, immovable: true });
 
     // --- разбираем карту ------------------------------------
@@ -84,6 +98,8 @@ class GameScene extends Phaser.Scene {
           this.solids.create(x + TILE / 2, y + TILE / 4, 'platform');
         } else if (ch === 'o') {
           this.bones.create(x + TILE / 2, y + TILE / 2, 'bone');
+        } else if (ch === 'E') {
+          this.spawnEnemy(x + TILE / 2, y + TILE / 2);
         } else if (ch === 'P') {
           this.spawn = { x: x + TILE / 2, y: y + TILE / 2 };
         } else if (ch === 'F') {
@@ -120,11 +136,26 @@ class GameScene extends Phaser.Scene {
       });
     }
 
+    if (!this.anims.exists('cat-walk')) {
+      this.anims.create({
+        key: 'cat-walk',
+        frames: [{ key: 'cat-step1' }, { key: 'cat-step2' }],
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+
+    this.enemies.getChildren().forEach(function (e) {
+      e.play('cat-walk');
+    });
+
     this.physics.world.gravity.y = TUNING.gravity;
     this.physics.world.setBounds(0, 0, this.levelWidth, this.levelHeight);
 
     this.physics.add.collider(this.player, this.solids);
     this.physics.add.overlap(this.player, this.bones, this.grabBone, null, this);
+    this.physics.add.collider(this.enemies, this.solids);
+    this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, null, this);
     if (this.flag) {
       this.physics.add.overlap(this.player, this.flag, this.reachFlag, null, this);
     }
@@ -174,6 +205,86 @@ class GameScene extends Phaser.Scene {
     );
   }
 
+  // --- враги -----------------------------------------------
+
+  spawnEnemy(x, y) {
+    const e = this.enemies.create(x, y, 'cat-step1');
+    e.body.setSize(24, 24).setOffset(4, 8);
+    e.setData('dir', -1);
+    e.setData('dead', false);
+    return e;
+  }
+
+  // Есть ли опора под точкой чуть впереди врага?
+  // Проверяем не физикой, а самой картой уровня — так надёжнее
+  // и не нужны невидимые сенсоры.
+  groundAhead(e) {
+    const dir = e.getData('dir');
+    const px = dir < 0 ? e.body.left - 4 : e.body.right + 4;
+    const py = e.body.bottom + 6;
+
+    const c = Math.floor(px / TILE);
+    const r = Math.floor(py / TILE);
+
+    if (r < 0 || r >= this.levelRows.length) return false;
+    const line = this.levelRows[r];
+    if (c < 0 || c >= line.length) return false;
+
+    const ch = line[c];
+    return ch === '#' || ch === '=';
+  }
+
+  patrol() {
+    const self = this;
+    this.enemies.getChildren().forEach(function (e) {
+      if (e.getData('dead')) return;
+
+      let dir = e.getData('dir');
+
+      // разворот у стены или на краю площадки
+      if (e.body.blocked.left) dir = 1;
+      else if (e.body.blocked.right) dir = -1;
+      else if (e.body.blocked.down && !self.groundAhead(e)) dir = -dir;
+
+      e.setData('dir', dir);
+      e.setVelocityX(TUNING.enemySpeed * dir);
+      e.setFlipX(dir > 0);
+    });
+  }
+
+  hitEnemy(player, enemy) {
+    if (this.finished || this.dying || enemy.getData('dead')) return;
+
+    // Прыгнул сверху или налетел сбоку? Смотрим на две вещи:
+    // собака должна падать вниз и находиться выше кота.
+    const falling = player.body.velocity.y > 0;
+    const fromAbove = player.body.bottom - enemy.body.top < 20;
+
+    if (falling && fromAbove) {
+      this.squash(enemy);
+      player.setVelocityY(-TUNING.stompBounce);
+    } else {
+      this.die();
+    }
+  }
+
+  squash(enemy) {
+    enemy.setData('dead', true);
+    enemy.body.enable = false;
+    enemy.anims.stop();
+    enemy.setTexture('cat-step1');
+
+    this.tweens.add({
+      targets: enemy,
+      scaleY: 0.25,
+      y: enemy.y + 10,
+      alpha: 0,
+      duration: 220,
+      ease: 'Quad.out',
+      onComplete: function () { enemy.destroy(); },
+    });
+  }
+
   grabBone(player, bone) {
     bone.disableBody(true, true);
     this.bonesCollected++;
@@ -201,6 +312,8 @@ class GameScene extends Phaser.Scene {
   }
 
   die() {
+    if (this.dying) return;
+    this.dying = true;
     Save.addDeath();
     this.scene.restart({ levelIndex: this.levelIndex });
   }
@@ -217,6 +330,8 @@ class GameScene extends Phaser.Scene {
       }
       return;
     }
+
+    this.patrol();
 
     const p = this.player;
 

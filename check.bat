@@ -18,6 +18,7 @@ for %%F in (
   src\sprites.js
   src\levels.js
   src\save.js
+  src\run.js
   src\scenes\GameScene.js
   .github\workflows\telegram.yml
   .github\scripts\post-telegram.js

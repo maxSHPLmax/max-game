@@ -210,7 +210,7 @@ class GameScene extends Phaser.Scene {
   updateHud() {
     const lvl = LEVELS[this.levelIndex];
     this.hud.setText(
-      `${lvl.name}   косточки ${this.bonesCollected}/${this.totalBones}   смерти ${Save.load().totalDeaths}`
+      `${lvl.name}   ${Run.heartsLabel()}   косточки ${this.bonesCollected}/${this.totalBones}`
     );
   }
 
@@ -297,7 +297,33 @@ class GameScene extends Phaser.Scene {
   grabBone(player, bone) {
     bone.disableBody(true, true);
     this.bonesCollected++;
+
+    if (Run.addBone()) {
+      this.toast('+1 жизнь');
+    }
+
     this.updateHud();
+  }
+
+  // Всплывающая надпись поверх игры
+  toast(text) {
+    const t = this.add.text(this.scale.width / 2, 96, text, {
+      fontFamily: 'monospace',
+      fontSize: '22px',
+      color: '#ffcc33',
+    })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setShadow(2, 2, '#000000aa', 0);
+
+    this.tweens.add({
+      targets: t,
+      y: 62,
+      alpha: 0,
+      duration: 1200,
+      ease: 'Quad.out',
+      onComplete: function () { t.destroy(); },
+    });
   }
 
   reachFlag() {
@@ -324,7 +350,32 @@ class GameScene extends Phaser.Scene {
     if (this.dying) return;
     this.dying = true;
     Save.addDeath();
-    this.scene.restart({ levelIndex: this.levelIndex });
+
+    // Полёт как в Марио: собака подпрыгивает и проваливается
+    // сквозь платформы вниз.
+    const p = this.player;
+    p.body.checkCollision.none = true;
+    p.setVelocity(0, -330);
+    p.anims.stop();
+    p.setTexture('dog-jump');
+
+    const left = Run.loseLife();
+    const self = this;
+
+    if (left > 0) {
+      this.banner.setText('Осталось жизней: ' + left).setVisible(true);
+      this.time.delayedCall(1200, function () {
+        self.scene.restart({ levelIndex: self.levelIndex });
+      });
+    } else {
+      this.banner
+        .setText('ИГРА ОКОНЧЕНА\n\nНачинаем с первого уровня')
+        .setVisible(true);
+      this.time.delayedCall(2600, function () {
+        Run.reset();
+        self.scene.restart({ levelIndex: 0 });
+      });
+    }
   }
 
   update(time) {
@@ -332,6 +383,8 @@ class GameScene extends Phaser.Scene {
     const restartPressed =
       Phaser.Input.Keyboard.JustDown(this.keys.restart) ||
       TouchInput.consumeRestart();
+
+    if (this.dying) return;   // собака падает, ввод не принимаем
 
     if (this.finished) {
       if (restartPressed) {

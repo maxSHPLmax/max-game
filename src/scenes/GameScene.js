@@ -37,10 +37,12 @@ class GameScene extends Phaser.Scene {
     g.generateTexture('platform', TILE, TILE / 2);
     g.clear();
 
-    // сиба-ину — пиксель-арт из src/sprites.js
-    const dog = drawPixelArt(g, SPRITES.shiba, 2);
-    g.generateTexture('player', dog.width, dog.height);
-    g.clear();
+    // сиба-ину: четыре позы из src/sprites.js
+    ['stand', 'step1', 'step2', 'jump'].forEach(function (pose) {
+      const dog = drawPixelArt(g, composeShiba(pose), 2);
+      g.generateTexture('dog-' + pose, dog.width, dog.height);
+      g.clear();
+    });
 
     // косточка
     const bone = drawPixelArt(g, SPRITES.bone, 2);
@@ -64,6 +66,7 @@ class GameScene extends Phaser.Scene {
     this.bonesCollected = 0;
     this.startedAt = this.time.now;
     this.finished = false;
+    this.pose = null;
 
     this.solids = this.physics.add.staticGroup();
     this.bones  = this.physics.add.group({ allowGravity: false, immovable: true });
@@ -102,9 +105,20 @@ class GameScene extends Phaser.Scene {
     });
 
     // --- игрок ----------------------------------------------
-    this.player = this.physics.add.sprite(this.spawn.x, this.spawn.y, 'player');
+    this.player = this.physics.add.sprite(this.spawn.x, this.spawn.y, 'dog-stand');
     this.player.setCollideWorldBounds(false);
     this.player.body.setSize(22, 30).setOffset(5, 2);
+
+    // анимация ходьбы регистрируется один раз на всю игру,
+    // а create() выполняется заново при каждом рестарте уровня
+    if (!this.anims.exists('dog-walk')) {
+      this.anims.create({
+        key: 'dog-walk',
+        frames: [{ key: 'dog-step1' }, { key: 'dog-step2' }],
+        frameRate: 9,
+        repeat: -1,
+      });
+    }
 
     this.physics.world.gravity.y = TUNING.gravity;
     this.physics.world.setBounds(0, 0, this.levelWidth, this.levelHeight);
@@ -254,6 +268,19 @@ class GameScene extends Phaser.Scene {
     const jumpHeld = this.keys.jump.isDown || this.cursors.up.isDown || TouchInput.jumpHeld;
     if (!jumpHeld && p.body.velocity.y < -180) {
       p.setVelocityY(-180);
+    }
+
+    // --- поза собаки ----------------------------------------
+    const pose = !onGround ? 'jump' : (left || right) ? 'walk' : 'stand';
+
+    if (pose !== this.pose) {
+      this.pose = pose;
+      if (pose === 'walk') {
+        p.anims.play('dog-walk', true);
+      } else {
+        p.anims.stop();
+        p.setTexture('dog-' + pose);
+      }
     }
   }
 }

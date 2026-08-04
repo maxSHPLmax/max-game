@@ -10,8 +10,10 @@ const Save = {
 
   _data: null,
 
+  MAX_RECORDS: 5,
+
   _blank() {
-    return { levels: {}, totalDeaths: 0 };
+    return { levels: {}, totalDeaths: 0, records: [] };
   },
 
   load() {
@@ -24,6 +26,7 @@ const Save = {
       this._data = this._blank();
     }
     if (!this._data.levels) this._data.levels = {};
+    if (!this._data.records) this._data.records = [];
     return this._data;
   },
 
@@ -56,6 +59,25 @@ const Save = {
     const d = this.load();
     d.totalDeaths = (d.totalDeaths || 0) + 1;
     this._write();
+  },
+
+  // --- рекорды прохождения всей игры -----------------------
+
+  records() {
+    return this.load().records;
+  },
+
+  // Возвращает место в таблице (0 — первое) или -1, если не попал
+  addRecord(timeMs, bones) {
+    const d = this.load();
+    const entry = { timeMs: timeMs, bones: bones, at: Date.now() };
+
+    d.records.push(entry);
+    d.records.sort(function (a, b) { return a.timeMs - b.timeMs; });
+    d.records = d.records.slice(0, this.MAX_RECORDS);
+
+    this._write();
+    return d.records.indexOf(entry);
   },
 
   reset() {

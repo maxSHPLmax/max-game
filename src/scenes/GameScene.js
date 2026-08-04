@@ -14,6 +14,14 @@ const TUNING = {
   stompBounce: 380,  // отскок после прыжка на врага
 };
 
+// 273500 -> '4:33.5'
+function formatTime(ms) {
+  const total = ms / 1000;
+  const min = Math.floor(total / 60);
+  const sec = total - min * 60;
+  return min + ':' + (sec < 10 ? '0' : '') + sec.toFixed(1);
+}
+
 class GameScene extends Phaser.Scene {
   constructor() {
     super('Game');
@@ -79,6 +87,9 @@ class GameScene extends Phaser.Scene {
     this.bonesCollected = 0;
     this.startedAt = this.time.now;
     this.finished = false;
+    this.runComplete = false;
+
+    Run.beginIfNeeded();
     this.pose = null;
 
     this.levelRows = rows;      // нужен для проверки края платформы
@@ -331,13 +342,67 @@ class GameScene extends Phaser.Scene {
     const next = this.levelIndex + 1;
 
     if (next < LEVELS.length) {
-      this.banner.setText(`Уровень пройден!\n${this.bonesCollected}/${this.totalBones} косточек · ${secs} с`).setVisible(true);
+      this.banner
+        .setText(`Уровень пройден!\n${this.bonesCollected}/${this.totalBones} косточек · ${secs} с`)
+        .setVisible(true);
       this.time.delayedCall(1600, () => this.scene.restart({ levelIndex: next }));
     } else {
-      this.banner.setText(
-        `Уровень пройден!\n${this.bonesCollected}/${this.totalBones} косточек · ${secs} с\n\nНовые уровни — в следующем обновлении.\nR — пройти заново`
-      ).setVisible(true);
+      this.finishRun();
     }
+  }
+
+  // --- игра пройдена целиком -------------------------------
+
+  finishRun() {
+    this.runComplete = true;
+
+    const totalMs = Run.elapsed();
+    const bones = Run.bonesTotal;
+    const place = Save.addRecord(totalMs, bones);
+
+    this.showResults(totalMs, bones, place);
+  }
+
+  showResults(totalMs, bones, place) {
+    const lines = [];
+    lines.push('  И Г Р А   П Р О Й Д Е Н А  ');
+    lines.push('');
+    lines.push('время      ' + formatTime(totalMs));
+    lines.push('косточек   ' + bones);
+    lines.push('');
+    lines.push('ЛУЧШИЕ ЗАБЕГИ');
+
+    Save.records().forEach(function (r, i) {
+      lines.push(
+        (i + 1) + '.  ' + formatTime(r.timeMs) +
+        '   ' + String(r.bones).padStart(3, ' ') + ' кост.' +
+        (i === place ? '   <-- сейчас' : '')
+      );
+    });
+
+    if (place === -1) {
+      lines.push('');
+      lines.push('в таблицу не попал');
+    }
+
+    lines.push('');
+    lines.push('R — пройти заново');
+
+    this.banner.setVisible(false);
+
+    this.results = this.add.text(
+      this.scale.width / 2, this.scale.height / 2, lines.join('\n'), {
+        fontFamily: 'monospace',
+        fontSize: '17px',
+        color: '#ffffff',
+        align: 'left',
+        backgroundColor: '#0f0f1bee',
+        padding: { x: 26, y: 20 },
+        lineSpacing: 3,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
   }
 
   die() {
@@ -382,7 +447,12 @@ class GameScene extends Phaser.Scene {
 
     if (this.finished) {
       if (restartPressed) {
-        this.scene.restart({ levelIndex: this.levelIndex });
+        if (this.runComplete) {
+          Run.reset();                                  // новый забег: жизни, косточки, таймер
+          this.scene.restart({ levelIndex: 0 });
+        } else {
+          this.scene.restart({ levelIndex: this.levelIndex });
+        }
       }
       return;
     }

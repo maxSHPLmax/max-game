@@ -20,16 +20,10 @@ class GameScene extends Phaser.Scene {
   }
 
   init(data) {
-    if (data && typeof data.levelIndex === 'number') {
-      this.levelIndex = data.levelIndex;
-      return;
-    }
-
-    // Заход с нуля: начинаем с первого непройденного уровня,
-    // чтобы не заставлять переигрывать то, что уже сделано.
-    let idx = 0;
-    while (idx < LEVELS.length - 1 && Save.level(idx).completed) idx++;
-    this.levelIndex = idx;
+    // Забег всегда начинается с первого уровня — как в аркадах.
+    // Иначе жизни и «игра окончена» теряют смысл: возврат в начало
+    // ведёт туда, куда обычным путём уже не попасть.
+    this.levelIndex = data && typeof data.levelIndex === 'number' ? data.levelIndex : 0;
   }
 
   // --- рисуем спрайты кодом, чтобы не тащить картинки --------

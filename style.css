@@ -46,6 +46,7 @@ body.page-game {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;   /* без «потянуть, чтобы обновить» */
 }
 
 .bar {
@@ -91,6 +92,7 @@ body.page-game {
   flex: 1 1 auto;
   min-height: 0;
   background: #0a0a12;
+  position: relative;   /* точка отсчёта для экранных кнопок */
 }
 
 #game canvas { display: block; }
@@ -139,6 +141,79 @@ kbd {
   .brand { font-size: 11px; }
   .bar-links { gap: 12px; }
   .whats-new { display: none; }
+}
+
+
+/* ---------- экранные кнопки (телефон) ---------------------- */
+
+.touchpad {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;   /* сквозные тапы, ловят только кнопки */
+}
+
+.tp-move,
+.tp-act {
+  position: absolute;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.tp-move { left:  calc(14px + env(safe-area-inset-left, 0px)); }
+.tp-act  { right: calc(14px + env(safe-area-inset-right, 0px)); }
+
+.tp-btn {
+  pointer-events: auto;
+  touch-action: none;              /* тап не прокручивает страницу */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text);
+  background: rgba(27, 27, 46, 0.55);
+  border: 2px solid rgba(232, 230, 227, 0.45);
+  backdrop-filter: blur(2px);
+  transition: background 60ms linear, transform 60ms linear;
+}
+
+.tp-btn.is-on {
+  background: rgba(255, 204, 51, 0.8);
+  border-color: var(--gold);
+  color: var(--night);
+  transform: scale(0.94);
+}
+
+.tp-jump  { width: 78px; height: 78px; font-size: 24px; }
+.tp-small { width: 44px; height: 44px; font-size: 16px; opacity: 0.65; }
+
+/* на сенсорных подсказки про клавиши бессмысленны */
+body.is-touch .controls { display: none; }
+
+.rotate-hint { display: none; }
+
+@media (orientation: portrait) {
+  body.is-touch .rotate-hint {
+    display: inline;
+    color: var(--gold);
+    font-size: 12px;
+  }
+}
+
+/* в альбомной на невысоких экранах ужимаем полосы */
+@media (orientation: landscape) and (max-height: 480px) {
+  .bar { padding: 5px 12px; font-size: 11px; }
+  .brand { font-size: 10px; }
+  .tp-btn  { width: 52px; height: 52px; font-size: 17px; }
+  .tp-jump { width: 64px; height: 64px; font-size: 20px; }
 }
 
 /* на странице обновлений бейдж версии висит в углу */

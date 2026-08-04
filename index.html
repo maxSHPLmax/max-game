@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Max Game — браузерная бродилка</title>
 <meta name="description" content="Платформер прямо в браузере. Новый уровень каждую неделю.">
 
@@ -34,7 +34,19 @@
     </nav>
   </header>
 
-  <main id="game"></main>
+  <main id="game">
+    <!-- экранные кнопки: показываются только на сенсорных устройствах -->
+    <div class="touchpad" id="touch" hidden>
+      <div class="tp-move">
+        <button class="tp-btn" id="btn-left"  type="button" aria-label="Влево">&#9664;</button>
+        <button class="tp-btn" id="btn-right" type="button" aria-label="Вправо">&#9654;</button>
+      </div>
+      <div class="tp-act">
+        <button class="tp-btn tp-small" id="btn-restart" type="button" aria-label="Начать заново">&#8635;</button>
+        <button class="tp-btn tp-jump"  id="btn-jump"    type="button" aria-label="Прыжок">&#9650;</button>
+      </div>
+    </div>
+  </main>
 
   <footer class="bar bar-bottom">
     <span class="controls">
@@ -42,12 +54,14 @@
       <kbd>Space</kbd> прыжок
       <kbd>R</kbd> заново
     </span>
+    <span class="rotate-hint">Поверни телефон — играть будет удобнее</span>
     <span class="whats-new" id="whats-new"></span>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script src="changelog.js"></script>
   <script src="src/site.js"></script>
+  <script src="src/touch.js"></script>
   <script src="src/levels.js"></script>
   <script src="src/save.js"></script>
   <script src="src/scenes/GameScene.js"></script>

@@ -5,9 +5,9 @@
 //  Каждый спрайт это сетка символов, один символ = один пиксель.
 //  Точка — прозрачно. Остальные буквы — цвета из PIXEL_COLORS.
 //
-//  Хочешь перекрасить собаку — поменяй цвет 'f' ниже.
-//  Хочешь другого персонажа — перерисуй сетку, размер
-//  подставится сам.
+//  Собака собирается из двух частей: неизменное тело плюс
+//  вариант лап. Так кадры анимации не приходится рисовать
+//  целиком — меняются только две нижние строки.
 // ===========================================================
 
 const PIXEL_COLORS = {
@@ -20,27 +20,45 @@ const PIXEL_COLORS = {
   S: 0xc8c6be,   // тень на косточке
 };
 
-const SPRITES = {
-  // 16 x 16 пикселей, рисуется в масштабе 2 → спрайт 32x32
-  shiba: [
-    '..oo........oo..',
-    '.offo......offo.',
-    '.offdo....odffo.',
-    '..offoooooooffo.',
-    '..offffffffffdo.',
-    '.offccfffccffdo.',
-    '.offcefdcceffdo.',
-    '.offccfdfccffdo.',
-    '.offfffdfffffdo.',
-    '..offffeefffdo..',
-    '...offcccccdo...',
-    '....oofffdoo....',
-    '...offcccccfo...',
-    '...offcccccfo...',
-    '..ofco...ocfo...',
-    '..occo...occo...',
-  ],
+// Тело — 14 строк. Ниже к нему приставляются лапы.
+const SHIBA_BODY = [
+  '..oo........oo..',
+  '.offo......offo.',
+  '.offdo....odffo.',
+  '..offoooooooffo.',
+  '..offffffffffdo.',
+  '.offccfffccffdo.',
+  '.offcefdcceffdo.',
+  '.offccfdfccffdo.',
+  '.offfffdfffffdo.',
+  '..offffeefffdo..',
+  '...offcccccdo...',
+  '....oofffdoo....',
+  '...offcccccfo...',
+  '...offcccccfo...',
+];
 
+// Варианты лап — по 2 строки, приставляются снизу к телу.
+const SHIBA_LEGS = {
+  stand: ['..ofco...ocfo...',
+          '..occo...occo...'],
+
+  step1: ['..ofco...ocfo...',   // левая лапа поднята
+          '.........occo...'],
+
+  step2: ['..ofco...ocfo...',   // правая лапа поднята
+          '..occo..........'],
+
+  jump:  ['.ofco.....ocfo..',   // лапы враскоряку
+          'occo.......occo.'],
+};
+
+// Собирает готовую сетку собаки: тело + выбранные лапы
+function composeShiba(legsKey) {
+  return SHIBA_BODY.concat(SHIBA_LEGS[legsKey]);
+}
+
+const SPRITES = {
   // 9 x 7 пикселей, масштаб 2 → 18x14
   bone: [
     '.oo...oo.',

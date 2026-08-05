@@ -94,6 +94,11 @@ class GameScene extends Phaser.Scene {
     g.fillStyle(0xdddddd).fillRect(0, 0, 4, 64);
     g.fillStyle(0x4ec9b0).fillTriangle(4, 4, 30, 14, 4, 24);
     g.generateTexture('flag', 32, 64);
+    g.clear();
+
+    // сердечко для салюта на финише
+    const heart = drawPixelArt(g, SPRITES.heart, 3);
+    g.generateTexture('heart', heart.width, heart.height);
     g.destroy();
   }
 
@@ -450,6 +455,7 @@ class GameScene extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.freeze();
+    this.fireworks(this.flag.x, this.flag.y);
 
     const elapsed = this.time.now - this.startedAt;
     Save.completeLevel(this.levelIndex, this.bonesCollected, elapsed);
@@ -481,6 +487,36 @@ class GameScene extends Phaser.Scene {
       e.setVelocity(0, 0);
       e.anims.stop();
     });
+  }
+
+  // Салют из сердечек в точке флага: разлетаются вверх и в
+  // стороны с разбросом по скорости и углу, потом падают и
+  // тают. Глубина ниже баннера и таблицы рекордов (depth 0/100),
+  // чтобы не перекрывать текст. Живут физикой мира независимо
+  // от update() — тот после freeze() сразу возвращается, но шаг
+  // физики и твины Phaser это не останавливает.
+  fireworks(x, y) {
+    const COUNT = 16;
+
+    for (let i = 0; i < COUNT; i++) {
+      const heart = this.physics.add.sprite(x, y, 'heart');
+      heart.setDepth(-1);
+      heart.setScale(Phaser.Math.FloatBetween(0.6, 1.1));
+
+      const angle = Phaser.Math.FloatBetween(-2.4, -0.7); // вверх, с разбросом влево-вправо
+      const speed = Phaser.Math.Between(180, 340);
+      heart.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      heart.setAngularVelocity(Phaser.Math.Between(-180, 180));
+
+      this.tweens.add({
+        targets: heart,
+        alpha: 0,
+        delay: 700,
+        duration: 800,
+        ease: 'Quad.in',
+        onComplete: function () { heart.destroy(); },
+      });
+    }
   }
 
   // --- игра пройдена целиком -------------------------------

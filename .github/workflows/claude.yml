@@ -1,8 +1,8 @@
 name: Claude
 
 # Агент просыпается, когда в issue или комментарии упомянут @claude.
-# Он читает CLAUDE.md, правит файлы и открывает pull request.
-# В main ничего не попадает без твоего мержа.
+# Он читает CLAUDE.md, правит файлы, гоняет tools/validate.js
+# и открывает pull request. В main ничего не попадает без мержа.
 
 on:
   issue_comment:
@@ -26,11 +26,16 @@ jobs:
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
 
     runs-on: ubuntu-latest
-    timeout-minutes: 20        # страховка от зависшего прогона
+    timeout-minutes: 30
 
     steps:
       - name: Забрать код
         uses: actions/checkout@v4
+
+      - name: Поставить Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Запустить агента
         uses: anthropics/claude-code-action@v1
@@ -38,4 +43,5 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 30
+            --max-turns 60
+            --allowedTools "Edit,Write,Read,Glob,Grep,Bash(node:*)"

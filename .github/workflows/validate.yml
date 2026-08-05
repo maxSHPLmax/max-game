@@ -1,0 +1,31 @@
+name: Проверка
+
+# Гоняется на каждый пуш и каждый PR. Это тот самый «зелёный»,
+# без которого нельзя включать автомерж.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Забрать код
+        uses: actions/checkout@v4
+
+      - name: Поставить Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Синтаксис всех скриптов
+        run: |
+          for f in changelog.js src/*.js src/scenes/*.js .github/scripts/*.js tools/*.js; do
+            node --check "$f" || exit 1
+          done
+          echo "синтаксис в порядке"
+
+      - name: Инварианты проекта
+        run: node tools/validate.js

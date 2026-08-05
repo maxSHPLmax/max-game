@@ -1,6 +1,19 @@
 @echo off
 setlocal
 
+where node >nul 2>nul
+if errorlevel 1 (
+    echo Node.js not found - skipping tools/validate.js
+) else (
+    node tools/validate.js
+    if errorlevel 1 (
+        echo.
+        echo Deploy cancelled. Fix the problems above.
+        pause
+        exit /b 1
+    )
+)
+
 call check.bat
 if errorlevel 1 (
     echo.

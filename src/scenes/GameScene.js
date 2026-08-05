@@ -138,6 +138,7 @@ class GameScene extends Phaser.Scene {
     this.solids = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
     this.bones  = this.physics.add.group({ allowGravity: false, immovable: true });
+    this.movers = this.physics.add.group({ allowGravity: false, immovable: true });
 
     // --- разбираем карту ------------------------------------
     for (let r = 0; r < rows.length; r++) {
@@ -164,6 +165,9 @@ class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    // --- движущиеся платформы --------------------------------
+    (level.movers || []).forEach((cfg) => this.spawnMover(cfg));
 
     this.totalBones = this.bones.getChildren().length;
 
@@ -227,6 +231,7 @@ class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, this.levelWidth, this.levelHeight);
 
     this.physics.add.collider(this.player, this.solids);
+    this.physics.add.collider(this.player, this.movers, this.rideMover, null, this);
     this.physics.add.overlap(this.player, this.bones, this.grabBone, null, this);
     if (this.golden) {
       this.physics.add.overlap(this.player, this.golden, this.grabGolden, null, this);
@@ -241,6 +246,7 @@ class GameScene extends Phaser.Scene {
     }
 
     this.physics.add.collider(this.enemies, this.solids);
+    this.physics.add.collider(this.enemies, this.movers, this.rideMover, null, this);
     this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, null, this);
     if (this.flag) {
       this.physics.add.overlap(this.player, this.flag, this.reachFlag, null, this);
@@ -346,6 +352,59 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // --- движущиеся платформы ---------------------------------
+
+  // Тело кинематическое: без гравитации, immovable, но с
+  // ненулевой скоростью — Arcade Physics таскает его сама,
+  // а мы только разворачиваем на концах пути.
+  spawnMover(cfg) {
+    const from = { x: cfg.col * TILE + (cfg.w * TILE) / 2, y: cfg.row * TILE + TILE / 4 };
+    const to   = { x: from.x + cfg.dx * TILE, y: from.y + cfg.dy * TILE };
+
+    const platform = this.movers.create(from.x, from.y, 'platform');
+    platform.setDisplaySize(cfg.w * TILE, TILE / 2);
+    platform.body.setSize(cfg.w * TILE, TILE / 2);
+    platform.body.setAllowGravity(false);
+    platform.setImmovable(true);
+
+    platform.setData('from', from);
+    platform.setData('to', to);
+    platform.setData('target', to);
+    platform.setData('speed', cfg.speed);
+
+    this.physics.moveTo(platform, to.x, to.y, cfg.speed);
+    return platform;
+  }
+
+  // Разворот на концах пути: как только платформа долетает до
+  // цели, следующая цель — противоположная точка.
+  updateMovers() {
+    this.movers.getChildren().forEach((platform) => {
+      const target = platform.getData('target');
+      const dist = Phaser.Math.Distance.Between(platform.x, platform.y, target.x, target.y);
+
+      if (dist < 4) {
+        const from = platform.getData('from');
+        const to = platform.getData('to');
+        const next = target === to ? from : to;
+
+        platform.setPosition(target.x, target.y);
+        platform.setData('target', next);
+        this.physics.moveTo(platform, next.x, next.y, platform.getData('speed'));
+      }
+    });
+  }
+
+  // Arcade Physics не переносит наездника вместе с платформой
+  // сам — добавляем ему смещение платформы за этот шаг физики,
+  // но только когда он стоит сверху, а не бьётся о неё сбоку.
+  rideMover(rider, platform) {
+    if (rider.body.touching.down && platform.body.touching.up) {
+      rider.x += platform.body.deltaX();
+      rider.y += platform.body.deltaY();
+    }
+  }
+
   // --- враги -----------------------------------------------
 
   spawnEnemy(x, y) {
@@ -363,6 +422,10 @@ class GameScene extends Phaser.Scene {
     const dir = e.getData('dir');
     const px = dir < 0 ? e.body.left - 4 : e.body.right + 4;
     const py = e.body.bottom + 6;
+
+    // движущаяся платформа не отражена в текстовой карте — её
+    // текущие мировые границы проверяем отдельно
+    if (this.movers.getChildren().some((m) => m.getBounds().contains(px, py))) return true;
 
     const c = Math.floor(px / TILE);
     const r = Math.floor(py / TILE);
@@ -646,6 +709,7 @@ class GameScene extends Phaser.Scene {
     }
 
     this.patrol();
+    this.updateMovers();
 
     const p = this.player;
 

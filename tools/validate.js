@@ -152,12 +152,32 @@ const isSolid = (rows, r, c) =>
 // Верх поверхности клетки: платформа '=' занимает верхнюю половину
 const surfaceY = (rows, r, c) => (rows[r][c] === '=' ? r * TILE + TILE / 2 : r * TILE);
 
-// Ближайшая опора под точкой: возвращает {r, y} или null
-function supportBelow(rows, r, c) {
+// Движущаяся платформа, чья стартовая позиция накрывает клетку
+// (r, c) — стоит так же, как '=' в том же ряду.
+function moverAtRow(movers, r, c) {
+  return movers.find((m) => m.row === r && c >= m.col && c < m.col + m.w);
+}
+
+// Ближайшая опора под точкой: возвращает {r, y} или null.
+// movers передаётся только там, где стартовая позиция платформы
+// разрешена как опора (коты) — флаг и игрок должны стоять на земле.
+function supportBelow(rows, r, c, movers) {
   for (let rr = r + 1; rr < rows.length; rr++) {
     if (isSolid(rows, rr, c)) return { r: rr, y: surfaceY(rows, rr, c) };
+    if (movers) {
+      const m = moverAtRow(movers, rr, c);
+      if (m) return { r: rr, y: rr * TILE + TILE / 2, mover: m };
+    }
   }
   return null;
+}
+
+// Положение платформы в момент t∈[0,1] пути от старта к дальней
+// точке, округлённое до клетки — как площадка для графа прыжков.
+function moverSample(m, t) {
+  const col = Math.round(m.col + m.dx * t);
+  const row = Math.round(m.row + m.dy * t);
+  return { r: row, c0: col, c1: col + m.w - 1, y: row * TILE + TILE / 2 };
 }
 
 // Просвет над головой на площадке: сколько пикселей свободно
@@ -174,6 +194,7 @@ function clearance(rows, r, c, surfY, bodyH) {
 LEVELS.forEach((lvl, li) => {
   const where = `уровень ${li + 1} «${lvl.name}»`;
   const rows = lvl.rows;
+  const movers = lvl.movers || [];
 
   // --- геометрия сетки ---
   if (rows.length !== 16) fail(where, `${rows.length} строк вместо 16`);
@@ -203,7 +224,7 @@ LEVELS.forEach((lvl, li) => {
       [...row].forEach((ch, c) => {
         if (ch !== mark) return;
         const bottom = (r + 1) * TILE;
-        const sup = supportBelow(rows, r, c);
+        const sup = supportBelow(rows, r, c, mark === 'E' ? movers : undefined);
 
         if (mark === 'G') {
           if (!sup) warn(where, `золотая косточка в колонке ${c} висит над пропастью`);
@@ -238,8 +259,15 @@ LEVELS.forEach((lvl, li) => {
   rows.forEach((row, r) => {
     [...row].forEach((ch, c) => {
       if (ch !== 'E') return;
-      const sup = supportBelow(rows, r, c);
+      const sup = supportBelow(rows, r, c, movers);
       if (!sup) return;                       // уже сообщили выше
+
+      if (sup.mover) {
+        if (sup.mover.w < 3) {
+          fail(where, `кот в колонке ${c}: движущаяся платформа шириной ${sup.mover.w} клеток, нужно от 3`);
+        }
+        return;
+      }
 
       let left = c;
       let right = c;
@@ -262,6 +290,37 @@ LEVELS.forEach((lvl, li) => {
     });
   });
 
+  // --- путь движущейся платформы не задевает твёрдые блоки ---
+  movers.forEach((m) => {
+    const STEPS = 20;
+    for (let i = 0; i <= STEPS; i++) {
+      const t = i / STEPS;
+      const x0 = (m.col + m.dx * t) * TILE;
+      const y0 = (m.row + m.dy * t) * TILE;
+      const x1 = x0 + m.w * TILE;
+      const y1 = y0 + TILE / 2;
+
+      const c0 = Math.floor(x0 / TILE);
+      const c1 = Math.ceil(x1 / TILE) - 1;
+      const r0 = Math.floor(y0 / TILE);
+      const r1 = Math.ceil(y1 / TILE) - 1;
+
+      let hit = null;
+      for (let r = r0; r <= r1 && !hit; r++) {
+        for (let c = c0; c <= c1 && !hit; c++) {
+          if (isSolid(rows, r, c)) hit = { r, c };
+        }
+      }
+
+      if (hit) {
+        fail(where,
+          `платформа из строки ${m.row}, колонки ${m.col}: путь пересекает твёрдый блок ` +
+          `в строке ${hit.r}, колонке ${hit.c}`);
+        break;
+      }
+    }
+  });
+
   // --- площадки и ямы между ними ---
   const plats = [];
   for (let r = 0; r < rows.length; r++) {
@@ -281,8 +340,17 @@ LEVELS.forEach((lvl, li) => {
 
   plats.sort((a, b) => a.c0 - b.c0);
 
+  // Движущаяся платформа даёт опору в любой точке пути — считаем
+  // её присутствующей в обеих крайних точках и в середине пути.
+  // Как источник прыжка (a) её не используем: игрок может подождать
+  // на ней сколько угодно и прыгнуть с любой позиции, а не только
+  // с трёх сэмплов, так что тут она — только цель приземления (b).
+  const moverPlats = [];
+  movers.forEach((m) => [0, 0.5, 1].forEach((t) => moverPlats.push(moverSample(m, t))));
+  const landingSpots = plats.concat(moverPlats).sort((a, b) => a.c0 - b.c0);
+
   plats.forEach((a) => {
-    const onward = plats.filter((b) => b.c0 > a.c1);
+    const onward = landingSpots.filter((b) => b.c0 > a.c1);
     if (!onward.length) return;               // самая правая площадка
 
     let best = null;

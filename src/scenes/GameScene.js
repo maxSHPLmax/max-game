@@ -15,6 +15,20 @@ const TUNING = {
   mercyMs:    1600,  // неуязвимость после того, как собака уменьшилась
 };
 
+// Салют из сердечек на финише. Считается отдельно от TUNING: это
+// декорация, а не игровая физика, и её собственная гравитация
+// сильно больше мировой, чтобы частицы успели упасть в бюджет.
+const FIREWORKS = {
+  countMin:     40,    // сколько сердечек разлетается, минимум
+  countMax:     60,    // и максимум
+  vyMin:       600,    // вертикальная скорость вылета, px/сек (меньшая по модулю)
+  vyMax:       900,    // и большая по модулю — вверх, поэтому в коде со знаком минус
+  vxSpread:    420,    // горизонтальная скорость: разброс от -vxSpread до +vxSpread
+  gravity:    1400,    // итоговая гравитация частиц, px/сек²
+  fadeDelayMs: 700,    // сколько лететь без затухания
+  fadeMs:      800,    // и сколько потом гаснуть — вместе укладывается в бюджет 1.5с
+};
+
 // Габариты тела для обеих комплекций. Спрайт большой собаки
 // рисуется в двойном масштабе, поэтому 64x64 против 32x32.
 const SIZES = {
@@ -496,23 +510,27 @@ class GameScene extends Phaser.Scene {
   // от update() — тот после freeze() сразу возвращается, но шаг
   // физики и твины Phaser это не останавливает.
   fireworks(x, y) {
-    const COUNT = 16;
+    const count = Phaser.Math.Between(FIREWORKS.countMin, FIREWORKS.countMax);
 
-    for (let i = 0; i < COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       const heart = this.physics.add.sprite(x, y, 'heart');
       heart.setDepth(-1);
       heart.setScale(Phaser.Math.FloatBetween(0.6, 1.1));
 
-      const angle = Phaser.Math.FloatBetween(-2.4, -0.7); // вверх, с разбросом влево-вправо
-      const speed = Phaser.Math.Between(180, 340);
-      heart.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      const vx = Phaser.Math.Between(-FIREWORKS.vxSpread, FIREWORKS.vxSpread);
+      const vy = -Phaser.Math.Between(FIREWORKS.vyMin, FIREWORKS.vyMax);
+      heart.setVelocity(vx, vy);
       heart.setAngularVelocity(Phaser.Math.Between(-180, 180));
+
+      // body.gravity складывается с мировой (TUNING.gravity), а не
+      // заменяет её — добавляем только разницу, чтобы итог был FIREWORKS.gravity.
+      heart.body.setGravityY(FIREWORKS.gravity - TUNING.gravity);
 
       this.tweens.add({
         targets: heart,
         alpha: 0,
-        delay: 700,
-        duration: 800,
+        delay: FIREWORKS.fadeDelayMs,
+        duration: FIREWORKS.fadeMs,
         ease: 'Quad.in',
         onComplete: function () { heart.destroy(); },
       });

@@ -1,0 +1,37 @@
+name: Автомерж
+
+# Включает автомерж на PR из веток агента (claude/*).
+# Сам мерж выполнит GitHub — когда проверка станет зелёной.
+#
+# ВАЖНО: используется персональный токен, а не встроенный
+# GITHUB_TOKEN. Пуш, сделанный встроенным токеном, не запускает
+# другие workflow — и пост в Telegram молча не ушёл бы.
+#
+# Чтобы отменить автомерж на конкретном PR, повесь на него
+# метку no-automerge до того, как проверка позеленеет.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    if: |
+      startsWith(github.event.pull_request.head.ref, 'claude/') &&
+      !contains(github.event.pull_request.labels.*.name, 'no-automerge')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Включить автомерж
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr merge "$PR" --repo "$REPO" --auto --squash --delete-branch
+          echo "Автомерж включён. PR вольётся, когда проверка станет зелёной."
